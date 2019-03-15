@@ -6,8 +6,10 @@ golang mysql struct implement with go-sql-driver
 $ go get -u github.com/hikaruocean/dbquery
 ```
 
-## Usagpackage main
+## Usage
 ```go
+package main
+
 import (
     "fmt"
     "github.com/hikaruocean/dbquery"
@@ -31,3 +33,6 @@ func main () {
     }
 }
 ```
+
+> row, err := rh.Fetch()
+> row is map[string]interface{}
