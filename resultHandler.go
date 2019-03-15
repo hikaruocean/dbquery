@@ -2,10 +2,15 @@ package dbquery
 
 import (
     "database/sql"
+    "fmt"
 )
 
 type ResultHandler struct {
     rows *sql.Rows
+}
+
+func (this *ResultHandler) Close() {
+    this.rows.Close()
 }
 
 func (this *ResultHandler) Fetch() (DBqueryRow, error) {
@@ -30,6 +35,7 @@ func (this *ResultHandler) Fetch() (DBqueryRow, error) {
     }
 
     if !this.rows.Next() {
+        defer this.Close()
         return assoc, nil
     }
 
