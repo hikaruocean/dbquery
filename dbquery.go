@@ -4,15 +4,44 @@ import (
     "database/sql"
     _ "github.com/go-sql-driver/mysql"
     "regexp"
+    "fmt"
 )
 
 type DBquery struct {
     db *sql.DB
     sth *sql.Stmt
+    dsn string
+    config map[string]string
+}
+
+func (this *DBquery) Config (config map[string]string) {
+    this.dsn = ""
+    this.config = config
+    fmt.Println(this.config)
+}
+
+func (this *DBquery) SetDSN () {
+    if val, isset := this.config["proto"] ; !isset || val == "" {
+        this.config["proto"] = "tcp"
+    }
+    if val, isset := this.config["port"] ; !isset || val == "" {
+        this.config["port"] = "3306"
+    }
+    if val, isset := this.config["charset"] ; !isset || val == "" {
+        this.config["charset"] = "utf8"
+    }
+    if val, isset := this.config["collation"] ; !isset || val == "" {
+        this.config["collation"] = "utf8_general_ci"
+    }
+
+    this.dsn = this.config["username"] + ":" + this.config["password"] + "@" + this.config["proto"] + "(" + this.config["host"] + ":" + this.config["port"] + ")/" + this.config["dbname"] + "?charset=" + this.config["charset"] + "&collation=" + this.config["collation"]
 }
 
 func (this *DBquery) Connect () (bool, error) {
-    db, err := sql.Open("mysql", "root:my19850126sql@(db)/soteria_cloud?charset=utf8&collation=utf8_general_ci")
+    if this.dsn == "" {
+        this.SetDSN()
+    }
+    db, err := sql.Open("mysql", this.dsn)
     if (err != nil) {
         return false, err
     }
