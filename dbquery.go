@@ -4,7 +4,6 @@ import (
     "database/sql"
     _ "github.com/go-sql-driver/mysql"
     "regexp"
-    "fmt"
 )
 
 type DBquery struct {
@@ -17,7 +16,6 @@ type DBquery struct {
 func (this *DBquery) Config (config map[string]string) {
     this.dsn = ""
     this.config = config
-    fmt.Println(this.config)
 }
 
 func (this *DBquery) SetDSN () {
