@@ -2,7 +2,6 @@ package dbquery
 
 import (
     "database/sql"
-    "fmt"
 )
 
 type ResultHandler struct {
