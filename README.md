@@ -17,6 +17,7 @@ import (
 
 func main () {
     var dbquery = new(dbquery.DBquery)
+    dbquery.Config(map[string]string{"username": "root", "password": "mysqlPassWord", "host": "db", "dbname": "databaseName"})
     dbquery.Connect()
     bindData := make(map[string]interface{})
     bindData["enabled"] = "Y"
