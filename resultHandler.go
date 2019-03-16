@@ -6,14 +6,38 @@ import (
 
 type ResultHandler struct {
     rows *sql.Rows
+    result sql.Result
 }
 
 func (this *ResultHandler) Close() {
+    if this.rows == nil {
+        return
+    }
     this.rows.Close()
+    return
+}
+
+func (this *ResultHandler) LastInsertId() (int64, error) {
+    if this.result == nil {
+        return 0, nil
+    }
+    id, err := this.result.LastInsertId()
+    return id, err
+}
+
+func (this *ResultHandler) RowsAffected() (int64, error) {
+    if this.result == nil {
+        return 0, nil
+    }
+    num, err := this.result.RowsAffected()
+    return num, err
 }
 
 func (this *ResultHandler) Fetch() (DBqueryRow, error) {
     assoc := make(DBqueryRow)
+    if this.rows == nil {
+        return assoc, nil
+    }
     colNameAry, err := this.rows.Columns()
     if err != nil {
         return assoc, err

@@ -47,7 +47,7 @@ func (this *DBquery) Connect () (bool, error) {
     return true, nil
 }
 
-func (this *DBquery) Execute (sqlStr string,params map[string]interface{}) (ResultHandler, error) {
+func (this *DBquery) Query (sqlStr string,params map[string]interface{}) (ResultHandler, error) {
     var rh ResultHandler
     realSql, markSortAry := this.getRealSql(sqlStr)
     sth, err := this.SthProcess(realSql)
@@ -62,12 +62,34 @@ func (this *DBquery) Execute (sqlStr string,params map[string]interface{}) (Resu
         bind = append(bind, params[val])
     }
     rows, err := sth.Query(bind...)
-    // defer rows.Close()
     if err != nil {
         panic(err.Error())
         return rh, err
     }
     rh.rows = rows
+    return rh, nil
+}
+
+func (this *DBquery) Execute (sqlStr string,params map[string]interface{}) (ResultHandler, error) {
+    var rh ResultHandler
+    realSql, markSortAry := this.getRealSql(sqlStr)
+    sth, err := this.SthProcess(realSql)
+    if err != nil {
+        return rh, err
+    }
+    defer sth.Close()
+    this.sth = sth
+
+    bind := make([]interface{}, 0)
+    for _, val := range markSortAry {
+        bind = append(bind, params[val])
+    }
+    result, err := sth.Exec(bind...)
+    if err != nil {
+        panic(err.Error())
+        return rh, err
+    }
+    rh.result = result
     return rh, nil
 }
 
