@@ -50,6 +50,7 @@ func (this *DBquery) Connect () (bool, error) {
 func (this *DBquery) Query (sqlStr string,params map[string]interface{}) (ResultHandler, error) {
     var rh ResultHandler
     realSql, markSortAry := this.getRealSql(sqlStr)
+    bind := this.getBindData(markSortAry, params)
     sth, err := this.SthProcess(realSql)
     if err != nil {
         return rh, err
@@ -57,10 +58,6 @@ func (this *DBquery) Query (sqlStr string,params map[string]interface{}) (Result
     defer sth.Close()
     this.sth = sth
 
-    bind := make([]interface{}, 0)
-    for _, val := range markSortAry {
-        bind = append(bind, params[val])
-    }
     rows, err := sth.Query(bind...)
     if err != nil {
         panic(err.Error())
@@ -73,6 +70,7 @@ func (this *DBquery) Query (sqlStr string,params map[string]interface{}) (Result
 func (this *DBquery) Execute (sqlStr string,params map[string]interface{}) (ResultHandler, error) {
     var rh ResultHandler
     realSql, markSortAry := this.getRealSql(sqlStr)
+    bind := this.getBindData(markSortAry, params)
     sth, err := this.SthProcess(realSql)
     if err != nil {
         return rh, err
@@ -80,10 +78,6 @@ func (this *DBquery) Execute (sqlStr string,params map[string]interface{}) (Resu
     defer sth.Close()
     this.sth = sth
 
-    bind := make([]interface{}, 0)
-    for _, val := range markSortAry {
-        bind = append(bind, params[val])
-    }
     result, err := sth.Exec(bind...)
     if err != nil {
         panic(err.Error())
@@ -91,6 +85,48 @@ func (this *DBquery) Execute (sqlStr string,params map[string]interface{}) (Resu
     }
     rh.result = result
     return rh, nil
+}
+
+func (this *DBquery) Insert (table string, data map[string]interface{}) (ResultHandler, error) {
+    colStr := ""
+    placeholderStr := ""
+    for colName := range data {
+        if colStr != "" {
+            colStr += ", "
+            placeholderStr += ", "
+        }
+        colStr += colName
+        placeholderStr += ":" + colName + ":"
+    }
+    sqlStr := "INSERT INTO " + table + " (" + colStr + ") VALUES (" + placeholderStr + ")"
+    rh, err := this.Execute(sqlStr, data)
+    return rh, err
+}
+
+func (this *DBquery) Update (table string, data map[string]interface{}, conditionStr string, cdata map[string]interface{}) (ResultHandler, error) {
+    setStr := ""
+    bindData := make(map[string]interface{})
+    for colName := range data {
+        if setStr != "" {
+            setStr += ", "
+        }
+        setStr += colName + " = :d_" + colName + ": "
+        bindData["d_" + colName] = data[colName]
+    }
+
+    sqlStr := "UPDATE " + table + " SET " + setStr + " WHERE " + conditionStr
+    for placeholder, val := range cdata {
+        bindData[placeholder] = val
+    }
+    rh, err := this.Execute(sqlStr, bindData)
+    return rh, err
+}
+
+func (this *DBquery) Delete (table string, conditionStr string, cdata map[string]interface{}) (ResultHandler, error) {
+
+    sqlStr := "DELETE FROM " + table + " WHERE " + conditionStr
+    rh, err := this.Execute(sqlStr, cdata)
+    return rh, err
 }
 
 func (this *DBquery) SthProcess (sqlStr string) (*sql.Stmt, error) {
@@ -108,4 +144,16 @@ func (this *DBquery) getRealSql (sqlStr string) (string, []string){
     }
     realSql := re.ReplaceAllString(sqlStr, "?")
     return realSql, markSortAry
+}
+
+func (this *DBquery) getBindData (markSortAry []string, params map[string]interface{}) ([]interface{}){
+    bind := make([]interface{}, 0)
+    for _, val := range markSortAry {
+        data, isset := params[val]
+        if !isset {
+            panic("Placeholder not found in bind data")
+        }
+        bind = append(bind, data)
+    }
+    return bind
 }
