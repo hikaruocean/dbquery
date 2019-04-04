@@ -9,8 +9,15 @@ import (
 type DBquery struct {
     db *sql.DB
     sth *sql.Stmt
+    tx *sql.Tx
     dsn string
     config map[string]string
+}
+
+func New (config map[string]string) (*DBquery) {
+    dbquery := new(DBquery)
+    dbquery.Config(config)
+    return dbquery
 }
 
 func (this *DBquery) Config (config map[string]string) {
@@ -35,7 +42,7 @@ func (this *DBquery) SetDSN () {
     this.dsn = this.config["username"] + ":" + this.config["password"] + "@" + this.config["proto"] + "(" + this.config["host"] + ":" + this.config["port"] + ")/" + this.config["dbname"] + "?charset=" + this.config["charset"] + "&collation=" + this.config["collation"]
 }
 
-func (this *DBquery) Connect () (bool, error) {
+func (this *DBquery) SetConnect () (bool, error) {
     if this.dsn == "" {
         this.SetDSN()
     }
@@ -47,6 +54,43 @@ func (this *DBquery) Connect () (bool, error) {
     return true, nil
 }
 
+func (this *DBquery) GetPoolHandler () (*sql.DB) {
+    return this.db
+}
+
+func Spawn (db *sql.DB) (*DBquery) {
+    dbquery := new(DBquery)
+    dbquery.db = db
+    return dbquery
+}
+
+func (this *DBquery) Begin () (error){
+    tx, err := this.db.Begin()
+    if err != nil {
+        return err
+    }
+    this.tx = tx
+    return nil
+}
+
+func (this *DBquery) Commit () (error) {
+    if this.tx == nil {
+        return nil
+    }
+    err := this.tx.Commit()
+    this.tx = nil
+    return err
+}
+
+func (this *DBquery) Rollback () (error) {
+    if this.tx == nil {
+        return nil
+    }
+    err := this.tx.Rollback()
+    this.tx = nil
+    return err
+}
+
 func (this *DBquery) Query (sqlStr string,params map[string]interface{}) (ResultHandler, error) {
     var rh ResultHandler
     realSql, markSortAry := this.getRealSql(sqlStr)
@@ -55,7 +99,6 @@ func (this *DBquery) Query (sqlStr string,params map[string]interface{}) (Result
     if err != nil {
         return rh, err
     }
-    defer sth.Close()
     this.sth = sth
 
     rows, err := sth.Query(bind...)
@@ -64,6 +107,7 @@ func (this *DBquery) Query (sqlStr string,params map[string]interface{}) (Result
         return rh, err
     }
     rh.rows = rows
+    rh.sth = this.sth
     return rh, nil
 }
 
@@ -75,7 +119,6 @@ func (this *DBquery) Execute (sqlStr string,params map[string]interface{}) (Resu
     if err != nil {
         return rh, err
     }
-    defer sth.Close()
     this.sth = sth
 
     result, err := sth.Exec(bind...)
@@ -84,6 +127,7 @@ func (this *DBquery) Execute (sqlStr string,params map[string]interface{}) (Resu
         return rh, err
     }
     rh.result = result
+    rh.sth = this.sth
     return rh, nil
 }
 
@@ -131,7 +175,13 @@ func (this *DBquery) Delete (table string, conditionStr string, cdata map[string
 
 func (this *DBquery) SthProcess (sqlStr string) (*sql.Stmt, error) {
 
-    stmt, err := this.db.Prepare(sqlStr)
+    var stmt *sql.Stmt
+    var err error
+    if this.tx == nil {
+        stmt, err = this.db.Prepare(sqlStr)
+    } else {
+        stmt, err = this.tx.Prepare(sqlStr)
+    }
     return stmt, err
 }
 

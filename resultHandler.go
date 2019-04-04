@@ -7,9 +7,14 @@ import (
 type ResultHandler struct {
     rows *sql.Rows
     result sql.Result
+    sth *sql.Stmt
 }
 
 func (this *ResultHandler) Close() {
+    for this.rows.Next() {
+        this.rows.Scan()
+    }
+    this.sth.Close()
     if this.rows == nil {
         return
     }
