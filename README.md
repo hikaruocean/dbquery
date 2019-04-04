@@ -18,10 +18,11 @@ import (
 func main () {
     var dbquery = dbquery.New(map[string]string{"username": "root", "password": "mysqlPassWord", "host": "db", "dbname": "databaseName"})
     dbquery.SetConnect()
+    conn := dbquery.GetConnection()
     bindData := make(map[string]interface{})
     bindData["enabled"] = "Y"
     bindData["deleted"] = "N"
-    rh, err := dbquery.Query("SELECT * FROM account WHERE enabled = :enabled: AND deleted = :deleted:", bindData)
+    rh, err := conn.Query("SELECT * FROM account WHERE enabled = :enabled: AND deleted = :deleted:", bindData)
     if err != nil {
         panic(err.Error())
     }
@@ -37,15 +38,15 @@ func main () {
     bindData["data1"] = "hikaru"
     bindData["created_at"] = "2019-01-01 00:00:00"
     bindData["updated_at"] = "2019-01-01 00:00:00"
-    dbquery.Begin()
-    rh, err = dbquery.Execute("INSERT INTO test (data1, created_at, updated_at) VALUES (:data1:, :created_at:, :updated_at:)", bindData)
+    conn.Begin()
+    rh, err = conn.Execute("INSERT INTO test (data1, created_at, updated_at) VALUES (:data1:, :created_at:, :updated_at:)", bindData)
     if err != nil {
         panic(err.Error())
     }
     id, err := rh.LastInsertId()
     num, err := rh.RowsAffected()
     rh.Close()
-    dbquery.Commit()
+    conn.Commit()
     fmt.Println(id, num)
 }
 ```
