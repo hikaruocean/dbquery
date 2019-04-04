@@ -11,15 +11,13 @@ type ResultHandler struct {
 }
 
 func (this *ResultHandler) Close() {
-    for this.rows.Next() {
-        this.rows.Scan()
+    if this.rows != nil {
+        for this.rows.Next() {
+            this.rows.Scan()
+        }
+        this.rows.Close()
     }
     this.sth.Close()
-    if this.rows == nil {
-        return
-    }
-    this.rows.Close()
-    return
 }
 
 func (this *ResultHandler) LastInsertId() (int64, error) {

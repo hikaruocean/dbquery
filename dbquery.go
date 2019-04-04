@@ -8,8 +8,6 @@ import (
 
 type DBquery struct {
     db *sql.DB
-    sth *sql.Stmt
-    tx *sql.Tx
     dsn string
     config map[string]string
 }
@@ -54,17 +52,20 @@ func (this *DBquery) SetConnect () (bool, error) {
     return true, nil
 }
 
-func (this *DBquery) GetPoolHandler () (*sql.DB) {
-    return this.db
+func (this *DBquery) GetConnection () (*Connection) {
+    conn := new(Connection)
+    conn.db = this.db
+    return conn
 }
 
-func Spawn (db *sql.DB) (*DBquery) {
-    dbquery := new(DBquery)
-    dbquery.db = db
-    return dbquery
+type Connection struct {
+    db *sql.DB
+    sth *sql.Stmt
+    tx *sql.Tx
 }
 
-func (this *DBquery) Begin () (error){
+
+func (this *Connection) Begin () (error){
     tx, err := this.db.Begin()
     if err != nil {
         return err
@@ -73,7 +74,7 @@ func (this *DBquery) Begin () (error){
     return nil
 }
 
-func (this *DBquery) Commit () (error) {
+func (this *Connection) Commit () (error) {
     if this.tx == nil {
         return nil
     }
@@ -82,7 +83,7 @@ func (this *DBquery) Commit () (error) {
     return err
 }
 
-func (this *DBquery) Rollback () (error) {
+func (this *Connection) Rollback () (error) {
     if this.tx == nil {
         return nil
     }
@@ -91,7 +92,7 @@ func (this *DBquery) Rollback () (error) {
     return err
 }
 
-func (this *DBquery) Query (sqlStr string,params map[string]interface{}) (ResultHandler, error) {
+func (this *Connection) Query (sqlStr string,params map[string]interface{}) (ResultHandler, error) {
     var rh ResultHandler
     realSql, markSortAry := this.getRealSql(sqlStr)
     bind := this.getBindData(markSortAry, params)
@@ -111,7 +112,7 @@ func (this *DBquery) Query (sqlStr string,params map[string]interface{}) (Result
     return rh, nil
 }
 
-func (this *DBquery) Execute (sqlStr string,params map[string]interface{}) (ResultHandler, error) {
+func (this *Connection) Execute (sqlStr string,params map[string]interface{}) (ResultHandler, error) {
     var rh ResultHandler
     realSql, markSortAry := this.getRealSql(sqlStr)
     bind := this.getBindData(markSortAry, params)
@@ -131,7 +132,7 @@ func (this *DBquery) Execute (sqlStr string,params map[string]interface{}) (Resu
     return rh, nil
 }
 
-func (this *DBquery) Insert (table string, data map[string]interface{}) (ResultHandler, error) {
+func (this *Connection) Insert (table string, data map[string]interface{}) (ResultHandler, error) {
     colStr := ""
     placeholderStr := ""
     for colName := range data {
@@ -147,7 +148,7 @@ func (this *DBquery) Insert (table string, data map[string]interface{}) (ResultH
     return rh, err
 }
 
-func (this *DBquery) Update (table string, data map[string]interface{}, conditionStr string, cdata map[string]interface{}) (ResultHandler, error) {
+func (this *Connection) Update (table string, data map[string]interface{}, conditionStr string, cdata map[string]interface{}) (ResultHandler, error) {
     setStr := ""
     bindData := make(map[string]interface{})
     for colName := range data {
@@ -166,14 +167,14 @@ func (this *DBquery) Update (table string, data map[string]interface{}, conditio
     return rh, err
 }
 
-func (this *DBquery) Delete (table string, conditionStr string, cdata map[string]interface{}) (ResultHandler, error) {
+func (this *Connection) Delete (table string, conditionStr string, cdata map[string]interface{}) (ResultHandler, error) {
 
     sqlStr := "DELETE FROM " + table + " WHERE " + conditionStr
     rh, err := this.Execute(sqlStr, cdata)
     return rh, err
 }
 
-func (this *DBquery) SthProcess (sqlStr string) (*sql.Stmt, error) {
+func (this *Connection) SthProcess (sqlStr string) (*sql.Stmt, error) {
 
     var stmt *sql.Stmt
     var err error
@@ -185,7 +186,7 @@ func (this *DBquery) SthProcess (sqlStr string) (*sql.Stmt, error) {
     return stmt, err
 }
 
-func (this *DBquery) getRealSql (sqlStr string) (string, []string){
+func (this *Connection) getRealSql (sqlStr string) (string, []string){
     markSortAry := make([]string, 0)
     re := regexp.MustCompile(`:([a-zA-Z_]+[a-zA-Z0-9_]+):`)
     matchAryAry := re.FindAllStringSubmatch(sqlStr, -1)
@@ -196,7 +197,7 @@ func (this *DBquery) getRealSql (sqlStr string) (string, []string){
     return realSql, markSortAry
 }
 
-func (this *DBquery) getBindData (markSortAry []string, params map[string]interface{}) ([]interface{}){
+func (this *Connection) getBindData (markSortAry []string, params map[string]interface{}) ([]interface{}){
     bind := make([]interface{}, 0)
     for _, val := range markSortAry {
         data, isset := params[val]
